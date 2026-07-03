@@ -9,6 +9,7 @@ A mobile-first quoting application for tradespeople and contractors. Create prof
 - **PDF export** — one-tap branded PDF generation for any quote (loaded on demand to keep the app fast)
 - **Customers** — manage customer contact details and notes, with quick-add directly from the quote editor
 - **Settings** — company profile, default tax rate, and default terms & conditions applied to new quotes
+- **Backup & restore** — download all data as a JSON file and restore it on any device from Settings
 - **Offline-first** — all data is persisted locally in the browser via IndexedDB (localforage); no account or network required
 
 ## Tech Stack

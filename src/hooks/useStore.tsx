@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { Customer, Quote, CompanyProfile } from "../types";
 import { getCustomers, saveCustomer, deleteCustomer, getQuotes, saveQuote, deleteQuote, getCompanyProfile, saveCompanyProfile } from "../lib/storage";
 
@@ -14,6 +14,7 @@ interface StoreState {
   updateQuote: (q: Quote) => Promise<void>;
   removeQuote: (id: string) => Promise<void>;
   updateProfile: (p: CompanyProfile) => Promise<void>;
+  reloadData: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreState | undefined>(undefined);
@@ -24,25 +25,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [loadedCustomers, loadedQuotes, loadedProfile] = await Promise.all([
-          getCustomers(),
-          getQuotes(),
-          getCompanyProfile(),
-        ]);
-        setCustomers(loadedCustomers);
-        setQuotes(loadedQuotes);
-        setProfile(loadedProfile);
-      } catch (err) {
-        console.error("Failed to load data", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
+  const reloadData = useCallback(async () => {
+    const [loadedCustomers, loadedQuotes, loadedProfile] = await Promise.all([
+      getCustomers(),
+      getQuotes(),
+      getCompanyProfile(),
+    ]);
+    setCustomers(loadedCustomers);
+    setQuotes(loadedQuotes);
+    setProfile(loadedProfile);
   }, []);
+
+  useEffect(() => {
+    reloadData()
+      .catch((err) => console.error("Failed to load data", err))
+      .finally(() => setIsLoading(false));
+  }, [reloadData]);
 
   const addCustomer = async (c: Customer) => {
     await saveCustomer(c);
@@ -97,6 +95,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updateQuote,
         removeQuote,
         updateProfile,
+        reloadData,
       }}
     >
       {children}
