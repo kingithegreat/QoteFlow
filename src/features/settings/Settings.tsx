@@ -1,15 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useStore } from "../../hooks/useStore";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/Card";
-import { Save } from "lucide-react";
+import { Save, Download, Upload } from "lucide-react";
+import { downloadBackup, restoreBackup } from "../../lib/backup";
 
 export function Settings() {
-  const { profile, updateProfile } = useStore();
+  const { profile, updateProfile, reloadData } = useStore();
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [backupMessage, setBackupMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    try {
+      await downloadBackup();
+      setBackupMessage({ text: "Backup downloaded. Keep it somewhere safe.", isError: false });
+    } catch (err) {
+      console.error("Backup export failed", err);
+      setBackupMessage({ text: "Failed to create backup. Please try again.", isError: true });
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!confirm("Restore this backup? Items with matching IDs will be overwritten. Your other data is kept.")) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const { customers, quotes } = await restoreBackup(text);
+      await reloadData();
+      setBackupMessage({
+        text: `Backup restored: ${quotes} quote(s) and ${customers} customer(s).`,
+        isError: false,
+      });
+    } catch (err) {
+      console.error("Backup restore failed", err);
+      setBackupMessage({
+        text: err instanceof Error ? err.message : "Failed to restore backup.",
+        isError: true,
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -19,6 +58,7 @@ export function Settings() {
     const formData = new FormData(e.currentTarget);
     
     await updateProfile({
+      ...profile,
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
@@ -98,7 +138,7 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        <div className="flex items-center gap-4 pt-2 pb-8">
+        <div className="flex items-center gap-4 pt-2">
           <Button type="submit" disabled={isSaving} className="min-w-32 shadow-sm">
             <Save className="mr-2 h-4 w-4" />
             {isSaving ? "Saving..." : "Save Settings"}
@@ -108,6 +148,40 @@ export function Settings() {
           )}
         </div>
       </form>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Backup &amp; Restore</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Your data lives only on this device. Download a backup regularly so you can recover
+            your quotes and customers if this device is lost or the browser data is cleared.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button type="button" variant="outline" onClick={handleExport} className="shadow-sm">
+              <Download className="mr-2 h-4 w-4" />
+              Download Backup
+            </Button>
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="shadow-sm">
+              <Upload className="mr-2 h-4 w-4" />
+              Restore Backup
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+          </div>
+          {backupMessage && (
+            <p className={`text-sm font-medium animate-in fade-in ${backupMessage.isError ? "text-red-600" : "text-green-600"}`}>
+              {backupMessage.text}
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

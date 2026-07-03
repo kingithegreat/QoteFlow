@@ -5,6 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // Relative base so the built app works from any path, including
+    // GitHub Pages project sites (https://<user>.github.io/<repo>/).
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

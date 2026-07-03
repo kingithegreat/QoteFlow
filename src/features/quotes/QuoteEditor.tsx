@@ -87,7 +87,7 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
     const quoteData: Quote = {
       id: quote?.id || uuidv4(),
       customerId,
-      quoteNumber: quote?.quoteNumber || generateQuoteNumber(quotes[0]?.quoteNumber),
+      quoteNumber: quote?.quoteNumber || generateQuoteNumber(quotes.map((q) => q.quoteNumber)),
       title,
       items,
       subtotal,
