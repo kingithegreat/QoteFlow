@@ -1,10 +1,12 @@
-import { Customer, Quote, CompanyProfile } from "../types";
+import { Customer, Quote, CompanyProfile, SavedItem } from "../types";
 import {
   getCustomers,
   getQuotes,
+  getSavedItems,
   getCompanyProfile,
   saveCustomer,
   saveQuote,
+  saveSavedItem,
   saveCompanyProfile,
 } from "./storage";
 
@@ -15,12 +17,14 @@ export interface BackupFile {
   profile: CompanyProfile;
   customers: Customer[];
   quotes: Quote[];
+  savedItems?: SavedItem[]; // absent in backups from older versions
 }
 
 export async function downloadBackup(): Promise<void> {
-  const [customers, quotes, profile] = await Promise.all([
+  const [customers, quotes, savedItems, profile] = await Promise.all([
     getCustomers(),
     getQuotes(),
+    getSavedItems(),
     getCompanyProfile(),
   ]);
 
@@ -31,6 +35,7 @@ export async function downloadBackup(): Promise<void> {
     profile,
     customers,
     quotes,
+    savedItems,
   };
 
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
@@ -61,6 +66,9 @@ function parseBackup(text: string): BackupFile {
   if (!hasIds(backup.customers) || !hasIds(backup.quotes)) {
     throw new Error("The backup file contains invalid records.");
   }
+  if (backup.savedItems !== undefined && (!Array.isArray(backup.savedItems) || !hasIds(backup.savedItems))) {
+    throw new Error("The backup file contains invalid records.");
+  }
 
   return backup as BackupFile;
 }
@@ -73,6 +81,7 @@ export async function restoreBackup(text: string): Promise<{ customers: number; 
   await Promise.all([
     ...backup.customers.map((c) => saveCustomer(c)),
     ...backup.quotes.map((q) => saveQuote(q)),
+    ...(backup.savedItems ?? []).map((s) => saveSavedItem(s)),
     saveCompanyProfile(backup.profile),
   ]);
 

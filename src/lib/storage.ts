@@ -1,5 +1,5 @@
 import localforage from "localforage";
-import { Customer, Quote, CompanyProfile } from "../types";
+import { Customer, Quote, CompanyProfile, SavedItem } from "../types";
 
 // Configure localforage
 localforage.config({
@@ -10,6 +10,7 @@ localforage.config({
 const customersDB = localforage.createInstance({ name: "QuoteFlow", storeName: "customers" });
 const quotesDB = localforage.createInstance({ name: "QuoteFlow", storeName: "quotes" });
 const settingsDB = localforage.createInstance({ name: "QuoteFlow", storeName: "settings" });
+const savedItemsDB = localforage.createInstance({ name: "QuoteFlow", storeName: "savedItems" });
 
 const DEFAULT_COMPANY: CompanyProfile = {
   name: "My Company",
@@ -18,6 +19,8 @@ const DEFAULT_COMPANY: CompanyProfile = {
   address: "",
   defaultTaxRate: 10,
   defaultTerms: "Payment is due within 14 days of acceptance. Quotes are valid for 30 days.",
+  defaultPaymentMethod: "",
+  paymentDetails: "",
   dashboardTitle: "Overview",
 };
 
@@ -55,6 +58,23 @@ export async function deleteQuote(id: string): Promise<void> {
   await quotesDB.removeItem(id);
 }
 
+// --- Saved Items ---
+export async function getSavedItems(): Promise<SavedItem[]> {
+  const items: SavedItem[] = [];
+  await savedItemsDB.iterate((value: SavedItem) => {
+    items.push(value);
+  });
+  return items.sort((a, b) => a.description.localeCompare(b.description));
+}
+
+export async function saveSavedItem(item: SavedItem): Promise<void> {
+  await savedItemsDB.setItem(item.id, item);
+}
+
+export async function deleteSavedItem(id: string): Promise<void> {
+  await savedItemsDB.removeItem(id);
+}
+
 // --- Settings ---
 export async function getCompanyProfile(): Promise<CompanyProfile> {
   const profile = await settingsDB.getItem<CompanyProfile>("profile");
@@ -70,4 +90,5 @@ export async function clearAllData(): Promise<void> {
   await customersDB.clear();
   await quotesDB.clear();
   await settingsDB.clear();
+  await savedItemsDB.clear();
 }

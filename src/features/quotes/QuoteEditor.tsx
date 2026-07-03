@@ -3,9 +3,9 @@ import { useStore } from "../../hooks/useStore";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
-import { X, Plus, Trash2, ArrowLeft, Save } from "lucide-react";
+import { X, Plus, Trash2, ArrowLeft, Save, BookmarkPlus, BookmarkCheck, Bookmark } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import { Quote, QuoteItem, QuoteStatus, Customer } from "../../types";
+import { Quote, QuoteItem, QuoteStatus, Customer, PaymentMethod, PAYMENT_METHODS } from "../../types";
 import { formatCurrency, generateQuoteNumber } from "../../lib/utils";
 
 interface QuoteEditorProps {
@@ -14,11 +14,12 @@ interface QuoteEditorProps {
 }
 
 export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
-  const { customers, quotes, profile, addQuote, updateQuote, removeQuote, addCustomer } = useStore();
-  
+  const { customers, quotes, savedItems, profile, addQuote, updateQuote, removeQuote, addCustomer, upsertSavedItem, removeSavedItem } = useStore();
+
   const [customerId, setCustomerId] = useState(quote?.customerId || "");
   const [title, setTitle] = useState(quote?.title || "");
   const [status, setStatus] = useState<QuoteStatus>(quote?.status || "Draft");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(quote?.paymentMethod ?? profile.defaultPaymentMethod ?? "");
   const [items, setItems] = useState<QuoteItem[]>(quote?.items || []);
   const [notes, setNotes] = useState(quote?.notes || "");
   const [terms, setTerms] = useState(quote?.terms || profile.defaultTerms);
@@ -26,6 +27,8 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
 
   const [isQuickAddingCustomer, setIsQuickAddingCustomer] = useState(false);
   const [quickCustomerName, setQuickCustomerName] = useState("");
+  const [showSavedPicker, setShowSavedPicker] = useState(false);
+  const [justSavedItemId, setJustSavedItemId] = useState<string | null>(null);
 
   // Recalculate totals
   const subtotal = items.reduce((acc, item) => acc + item.total, 0);
@@ -72,6 +75,31 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
     setItems(items.filter(item => item.id !== id));
   };
 
+  // Saves a line item to the reusable catalog; re-saving a description that
+  // already exists updates its price instead of creating a duplicate.
+  const handleSaveToCatalog = async (item: QuoteItem) => {
+    const description = item.description.trim();
+    if (!description) return;
+    const now = Date.now();
+    const existing = savedItems.find(
+      (s) => s.description.trim().toLowerCase() === description.toLowerCase()
+    );
+    await upsertSavedItem({
+      id: existing?.id || uuidv4(),
+      description,
+      unitPrice: item.unitPrice,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    });
+    setJustSavedItemId(item.id);
+    setTimeout(() => setJustSavedItemId((prev) => (prev === item.id ? null : prev)), 2000);
+  };
+
+  const handleAddSavedItem = (description: string, unitPrice: number) => {
+    setItems([...items, { id: uuidv4(), description, quantity: 1, unitPrice, total: unitPrice }]);
+    setShowSavedPicker(false);
+  };
+
   const handleSave = async () => {
     if (!customerId) {
       alert("Please select a customer");
@@ -95,6 +123,7 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
       taxAmount,
       total,
       status,
+      paymentMethod,
       notes,
       terms,
       createdAt: quote?.createdAt || now,
@@ -208,6 +237,20 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
                 <option value="Declined">Declined</option>
               </select>
             </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-900">Payment Method</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | "")}
+                className="flex h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-all cursor-pointer"
+              >
+                <option value="">Not specified</option>
+                {PAYMENT_METHODS.map((method) => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            </div>
           </div>
           </div>
 
@@ -215,10 +258,41 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900 tracking-tight">Line Items</h3>
-              <Button variant="secondary" size="sm" onClick={handleAddItem}>
-                <Plus className="h-4 w-4 mr-1" /> Add Item
-              </Button>
+              <div className="flex gap-2">
+                {savedItems.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={() => setShowSavedPicker(!showSavedPicker)}>
+                    <Bookmark className="h-4 w-4 mr-1" /> Saved Items
+                  </Button>
+                )}
+                <Button variant="secondary" size="sm" onClick={handleAddItem}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Item
+                </Button>
+              </div>
             </div>
+
+            {showSavedPicker && savedItems.length > 0 && (
+              <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-2 divide-y divide-blue-100">
+                {savedItems.map((saved) => (
+                  <div key={saved.id} className="flex items-center gap-2 py-1">
+                    <button
+                      onClick={() => handleAddSavedItem(saved.description, saved.unitPrice)}
+                      className="flex flex-1 items-center justify-between gap-3 rounded-xl px-3 py-2 text-left hover:bg-blue-100 transition-colors"
+                      title="Add to quote"
+                    >
+                      <span className="text-sm font-medium text-gray-900">{saved.description}</span>
+                      <span className="text-sm font-semibold text-gray-700 shrink-0">{formatCurrency(saved.unitPrice)}</span>
+                    </button>
+                    <button
+                      onClick={() => removeSavedItem(saved.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors shrink-0"
+                      title="Remove saved item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="space-y-4">
               {items.length === 0 ? (
@@ -268,6 +342,22 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
                         </div>
                       </div>
                     </div>
+
+                    {item.description.trim() && (
+                      <button
+                        onClick={() => handleSaveToCatalog(item)}
+                        className={`mt-3 flex items-center gap-1.5 text-xs font-semibold transition-colors ${
+                          justSavedItemId === item.id ? "text-green-600" : "text-blue-600 hover:text-blue-800"
+                        }`}
+                        title="Save this item for reuse on future quotes"
+                      >
+                        {justSavedItemId === item.id ? (
+                          <><BookmarkCheck className="h-4 w-4" /> Saved for reuse</>
+                        ) : (
+                          <><BookmarkPlus className="h-4 w-4" /> Save item for reuse</>
+                        )}
+                      </button>
+                    )}
                   </div>
                 ))
               )}

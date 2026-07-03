@@ -93,20 +93,38 @@ async function buildQuoteDoc(
   doc.text("Total:", 140, finalY + 14);
   doc.text(formatCurrency(quote.total), 180, finalY + 14, { align: "right" });
 
-  // Notes & Terms
+  // Payment, Notes & Terms stacked below the totals
   doc.setFontSize(10);
   doc.setTextColor(100);
+  let sectionY = finalY + 20;
+
+  const paymentDetails = profile.paymentDetails?.trim();
+  if (quote.paymentMethod || paymentDetails) {
+    doc.text("Payment:", 14, sectionY);
+    sectionY += 5;
+    if (quote.paymentMethod) {
+      doc.text(`Method: ${quote.paymentMethod}`, 14, sectionY);
+      sectionY += 5;
+    }
+    if (paymentDetails) {
+      const splitDetails = doc.splitTextToSize(paymentDetails, 120);
+      doc.text(splitDetails, 14, sectionY);
+      sectionY += splitDetails.length * 5;
+    }
+    sectionY += 5;
+  }
+
   if (quote.notes) {
-    doc.text("Notes:", 14, finalY + 20);
-    const splitNotes = doc.splitTextToSize(quote.notes, 100);
-    doc.text(splitNotes, 14, finalY + 25);
+    doc.text("Notes:", 14, sectionY);
+    const splitNotes = doc.splitTextToSize(quote.notes, 120);
+    doc.text(splitNotes, 14, sectionY + 5);
+    sectionY += 10 + splitNotes.length * 5;
   }
 
   if (quote.terms) {
-    const termsY = quote.notes ? finalY + 45 : finalY + 20;
-    doc.text("Terms & Conditions:", 14, termsY);
+    doc.text("Terms & Conditions:", 14, sectionY);
     const splitTerms = doc.splitTextToSize(quote.terms, 180);
-    doc.text(splitTerms, 14, termsY + 5);
+    doc.text(splitTerms, 14, sectionY + 5);
   }
 
   return doc;
