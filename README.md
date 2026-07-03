@@ -40,6 +40,13 @@ The app runs at http://localhost:3000.
 | `npm run preview` | Preview the production build |
 | `npm run lint` | Type-check with `tsc --noEmit` |
 
+## Deployment
+
+Pushes to `main` automatically build and deploy the app to GitHub Pages via
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). The build uses a
+relative base path, so it also works on any static host (Netlify, Vercel,
+Cloudflare Pages) by serving the `dist/` folder.
+
 ## Project Structure
 
 ```
