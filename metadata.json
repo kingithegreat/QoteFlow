@@ -1,0 +1,6 @@
+{
+  "name": "QuoteFlow",
+  "description": "A mobile-first quoting application for tradespeople and contractors, featuring offline-first storage and PDF generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
