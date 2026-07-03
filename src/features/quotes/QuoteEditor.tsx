@@ -3,7 +3,8 @@ import { useStore } from "../../hooks/useStore";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
-import { X, Plus, Trash2, ArrowLeft, Save, BookmarkPlus, BookmarkCheck, Bookmark } from "lucide-react";
+import { X, Plus, Trash2, ArrowLeft, Save, BookmarkPlus, BookmarkCheck, Bookmark, Ruler } from "lucide-react";
+import { MeasureTool } from "./MeasureTool";
 import { v4 as uuidv4 } from "uuid";
 import { Quote, QuoteItem, QuoteStatus, Customer, PaymentMethod, PAYMENT_METHODS } from "../../types";
 import { formatCurrency, generateQuoteNumber } from "../../lib/utils";
@@ -28,6 +29,7 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
   const [isQuickAddingCustomer, setIsQuickAddingCustomer] = useState(false);
   const [quickCustomerName, setQuickCustomerName] = useState("");
   const [showSavedPicker, setShowSavedPicker] = useState(false);
+  const [showMeasureTool, setShowMeasureTool] = useState(false);
   const [justSavedItemId, setJustSavedItemId] = useState<string | null>(null);
 
   // Recalculate totals
@@ -259,6 +261,9 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900 tracking-tight">Line Items</h3>
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowMeasureTool(true)}>
+                  <Ruler className="h-4 w-4 mr-1" /> Measure
+                </Button>
                 {savedItems.length > 0 && (
                   <Button variant="outline" size="sm" onClick={() => setShowSavedPicker(!showSavedPicker)}>
                     <Bookmark className="h-4 w-4 mr-1" /> Saved Items
@@ -407,6 +412,15 @@ export function QuoteEditor({ quote, onClose }: QuoteEditorProps) {
 
         </div>
       </div>
+
+      {showMeasureTool && (
+        <MeasureTool
+          onClose={() => setShowMeasureTool(false)}
+          onAddItem={(description, quantity) =>
+            setItems((prev) => [...prev, { id: uuidv4(), description, quantity, unitPrice: 0, total: 0 }])
+          }
+        />
+      )}
     </div>
   );
 }
