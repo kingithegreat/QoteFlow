@@ -12,8 +12,10 @@ export function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-export function generateQuoteNumber(lastNumber?: string) {
-  if (!lastNumber) return "QT-1001";
-  const num = parseInt(lastNumber.replace("QT-", ""), 10);
-  return `QT-${num + 1}`;
+export function generateQuoteNumber(existingNumbers: string[]) {
+  const max = existingNumbers.reduce((acc, n) => {
+    const num = parseInt(n.replace("QT-", ""), 10);
+    return Number.isNaN(num) ? acc : Math.max(acc, num);
+  }, 1000);
+  return `QT-${max + 1}`;
 }
