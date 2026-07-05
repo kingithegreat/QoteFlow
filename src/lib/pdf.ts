@@ -3,11 +3,11 @@ import { formatCurrency } from "./utils";
 import { formatDate } from "./dateUtils";
 
 // jsPDF is loaded on demand so it stays out of the main bundle.
-export async function generateQuotePDF(
+async function buildQuoteDoc(
   quote: Quote,
   customer: Customer | undefined,
   profile: CompanyProfile
-): Promise<void> {
+) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
@@ -93,21 +93,82 @@ export async function generateQuotePDF(
   doc.text("Total:", 140, finalY + 14);
   doc.text(formatCurrency(quote.total), 180, finalY + 14, { align: "right" });
 
-  // Notes & Terms
+  // Payment, Notes & Terms stacked below the totals
   doc.setFontSize(10);
   doc.setTextColor(100);
+  let sectionY = finalY + 20;
+
+  const paymentDetails = profile.paymentDetails?.trim();
+  if (quote.paymentMethod || paymentDetails) {
+    doc.text("Payment:", 14, sectionY);
+    sectionY += 5;
+    if (quote.paymentMethod) {
+      doc.text(`Method: ${quote.paymentMethod}`, 14, sectionY);
+      sectionY += 5;
+    }
+    if (paymentDetails) {
+      const splitDetails = doc.splitTextToSize(paymentDetails, 120);
+      doc.text(splitDetails, 14, sectionY);
+      sectionY += splitDetails.length * 5;
+    }
+    sectionY += 5;
+  }
+
   if (quote.notes) {
-    doc.text("Notes:", 14, finalY + 20);
-    const splitNotes = doc.splitTextToSize(quote.notes, 100);
-    doc.text(splitNotes, 14, finalY + 25);
+    doc.text("Notes:", 14, sectionY);
+    const splitNotes = doc.splitTextToSize(quote.notes, 120);
+    doc.text(splitNotes, 14, sectionY + 5);
+    sectionY += 10 + splitNotes.length * 5;
   }
 
   if (quote.terms) {
-    const termsY = quote.notes ? finalY + 45 : finalY + 20;
-    doc.text("Terms & Conditions:", 14, termsY);
+    doc.text("Terms & Conditions:", 14, sectionY);
     const splitTerms = doc.splitTextToSize(quote.terms, 180);
-    doc.text(splitTerms, 14, termsY + 5);
+    doc.text(splitTerms, 14, sectionY + 5);
   }
 
+  return doc;
+}
+
+export async function generateQuotePDF(
+  quote: Quote,
+  customer: Customer | undefined,
+  profile: CompanyProfile
+): Promise<void> {
+  const doc = await buildQuoteDoc(quote, customer, profile);
   doc.save(`${quote.quoteNumber}.pdf`);
+}
+
+// Opens the device share sheet with the quote PDF attached. On browsers
+// without file sharing (e.g. desktop Firefox), downloads the PDF and opens a
+// pre-filled email instead so the user can attach it manually.
+export async function shareQuotePDF(
+  quote: Quote,
+  customer: Customer | undefined,
+  profile: CompanyProfile
+): Promise<"shared" | "emailed"> {
+  const doc = await buildQuoteDoc(quote, customer, profile);
+  const filename = `${quote.quoteNumber}.pdf`;
+
+  const subject = `Quote ${quote.quoteNumber}${quote.title ? ` — ${quote.title}` : ""} from ${profile.name}`;
+  const body =
+    `Hi${customer ? ` ${customer.name}` : ""},\n\n` +
+    `Please find attached quote ${quote.quoteNumber}` +
+    `${quote.title ? ` for ${quote.title}` : ""} totalling ${formatCurrency(quote.total)}.\n\n` +
+    `Let me know if you have any questions.\n\n` +
+    `${profile.name}`;
+
+  const file = new File([doc.output("blob")], filename, { type: "application/pdf" });
+  if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+    // Throws AbortError if the user dismisses the share sheet.
+    await navigator.share({ files: [file], title: subject, text: body });
+    return "shared";
+  }
+
+  doc.save(filename);
+  const mailto =
+    `mailto:${encodeURIComponent(customer?.email || "")}` +
+    `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+  return "emailed";
 }

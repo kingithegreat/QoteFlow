@@ -6,6 +6,7 @@ import { Textarea } from "../../components/ui/Textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Save, Download, Upload } from "lucide-react";
 import { downloadBackup, restoreBackup } from "../../lib/backup";
+import { PAYMENT_METHODS, PaymentMethod } from "../../types";
 
 export function Settings() {
   const { profile, updateProfile, reloadData } = useStore();
@@ -65,6 +66,8 @@ export function Settings() {
       address: formData.get("address") as string,
       defaultTaxRate: Number(formData.get("defaultTaxRate")),
       defaultTerms: formData.get("defaultTerms") as string,
+      defaultPaymentMethod: formData.get("defaultPaymentMethod") as PaymentMethod | "",
+      paymentDetails: formData.get("paymentDetails") as string,
     });
     
     setIsSaving(false);
@@ -129,11 +132,39 @@ export function Settings() {
                 defaultValue={profile.defaultTaxRate} 
               />
             </div>
-            <Textarea 
-              name="defaultTerms" 
-              label="Default Terms & Conditions" 
-              defaultValue={profile.defaultTerms} 
+            <Textarea
+              name="defaultTerms"
+              label="Default Terms & Conditions"
+              defaultValue={profile.defaultTerms}
               rows={4}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="max-w-xs">
+              <label className="mb-2 block text-sm font-semibold text-gray-900">Default Payment Method</label>
+              <select
+                name="defaultPaymentMethod"
+                defaultValue={profile.defaultPaymentMethod || ""}
+                className="flex h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-all cursor-pointer"
+              >
+                <option value="">Not specified</option>
+                {PAYMENT_METHODS.map((method) => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            </div>
+            <Textarea
+              name="paymentDetails"
+              label="Payment Details (shown on quotes)"
+              placeholder={"e.g. Bank: ANZ\nAccount Name: My Company Ltd\nAccount #: 01-2345-6789012-00"}
+              defaultValue={profile.paymentDetails || ""}
+              rows={3}
             />
           </CardContent>
         </Card>

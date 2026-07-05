@@ -1,5 +1,16 @@
 export type QuoteStatus = "Draft" | "Sent" | "Accepted" | "Declined";
 
+export const PAYMENT_METHODS = ["Bank Transfer", "Cash", "Credit/Debit Card", "PayPal", "Other"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export interface SavedItem {
+  id: string;
+  description: string;
+  unitPrice: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -30,6 +41,7 @@ export interface Quote {
   taxAmount: number;
   total: number;
   status: QuoteStatus;
+  paymentMethod?: PaymentMethod | "";
   notes: string;
   terms: string;
   createdAt: number;
@@ -43,5 +55,7 @@ export interface CompanyProfile {
   address: string;
   defaultTaxRate: number;
   defaultTerms: string;
+  defaultPaymentMethod?: PaymentMethod | "";
+  paymentDetails?: string;
   dashboardTitle?: string;
 }

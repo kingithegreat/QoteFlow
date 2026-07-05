@@ -3,15 +3,15 @@ import { useStore } from "../../hooks/useStore";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Card, CardContent } from "../../components/ui/Card";
-import { Plus, Search, FileText, FileDown } from "lucide-react";
+import { Plus, Search, FileText, FileDown, Send } from "lucide-react";
 import { Quote, QuoteStatus } from "../../types";
 import { formatCurrency, cn } from "../../lib/utils";
 import { formatDate } from "../../lib/dateUtils";
 import { QuoteEditor } from "./QuoteEditor";
-import { generateQuotePDF } from "../../lib/pdf";
+import { generateQuotePDF, shareQuotePDF } from "../../lib/pdf";
 
 export function Quotes() {
-  const { quotes, customers, profile } = useStore();
+  const { quotes, customers, profile, updateQuote } = useStore();
   const [search, setSearch] = useState("");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
@@ -47,6 +47,21 @@ export function Quotes() {
       console.error("Failed to generate PDF", err);
       alert("Failed to generate PDF. Please try again.");
     });
+  };
+
+  const sendQuote = async (quote: Quote) => {
+    const customer = customers.find(c => c.id === quote.customerId);
+    try {
+      await shareQuotePDF(quote, customer, profile);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return; // share sheet dismissed
+      console.error("Failed to send quote", err);
+      alert("Failed to send quote. Please try again.");
+      return;
+    }
+    if (quote.status === "Draft") {
+      await updateQuote({ ...quote, status: "Sent", updatedAt: Date.now() });
+    }
   };
 
   const getStatusColor = (status: QuoteStatus) => {
@@ -159,9 +174,21 @@ export function Quotes() {
                             generatePDF(quote);
                           }}
                           className="p-2 text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-full transition-colors flex items-center gap-2 px-4"
+                          title="Download PDF"
                         >
                           <FileDown className="h-4 w-4" />
                           <span className="text-xs font-semibold sm:hidden">PDF</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendQuote(quote);
+                          }}
+                          className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-full transition-colors flex items-center gap-2 px-4"
+                          title="Send quote to customer"
+                        >
+                          <Send className="h-4 w-4" />
+                          <span className="text-xs font-semibold sm:hidden">Send</span>
                         </button>
                       </div>
                     </div>
